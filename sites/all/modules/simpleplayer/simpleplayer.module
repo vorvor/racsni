@@ -1,0 +1,345 @@
+<?php
+/**
+ * @file
+ * All functions for the HTML5 SimplePlayer module.
+ */
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function simpleplayer_field_formatter_info() {
+  return array(
+    'simpleplayer' => array(
+      'label' => t('HTML5 Simple Player'),
+      'description' => t('Play this file with HTML5 SimplePlayer.'),
+      'field types' => array('file', 'link_field'),
+      'settings' => array(
+        'enable_counter' => TRUE,
+        'enable_progressbar' => FALSE,
+        'enable_download' => FALSE,
+        'enable_back30' => TRUE,
+        'enable_combospeed' => TRUE,
+      ),
+    ),
+  );
+}
+
+/**
+ * Get mediafile extension (for checking mp4 vs mp3).
+ *
+ * @param string $mediafile
+ *   Media filename.
+ *
+ * @return string
+ *   returns 'video' 'audio' or 'error'.
+ */
+function simpleplayer_type($mediafile) {
+  switch (strstr(basename($mediafile), '.')) {
+    case '.mp4':
+      return 'video';
+
+    case '.mp3':
+      return 'audio';
+
+    default:
+      return 'other';
+  }
+}
+
+/**
+ * Creates admin form.
+ */
+function simpleplayer_admin() {
+  $form = array();
+
+  $form['simpleplayer_style'] = array(
+    '#type' => 'select',
+    '#title' => t('Style'),
+    '#default_value' => variable_get('simpleplayer_style'),
+    '#description' => t("Use an optional built-in CSS style."),
+    '#options' => array(
+      'none' => t('None. User Provided'),
+      'ideas' => t('Ideas By Elliot Style'),
+      'terminal' => t('Terminal Style'),
+    ),
+    '#required' => TRUE,
+  );
+  return system_settings_form($form);
+}
+
+/**
+ * Implements hook_permission().
+ */
+function simpleplayer_permission() {
+  return array(
+    'administer simpleplayer settings' => array(
+      'title' => t('administer simpleplayer settings'),
+      'description' => t('Perform administration tasks for my HTML5 SimplePlayer.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function simpleplayer_menu() {
+
+  $items = array();
+
+  $items['admin/config/media/simpleplayer'] = array(
+    'title' => 'HTML5 SimplePlayer',
+    'description' => 'Global Options for the HTML5 SimplePlayer',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('simpleplayer_admin'),
+    'access arguments' => array('administer simpleplayer settings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_field_formatter_settings_form().
+ */
+function simpleplayer_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+  // This gets the view_mode where our settings are stored.
+  $display = $instance['display'][$view_mode];
+  // This gets the actual settings.
+  $settings = $display['settings'];
+  $element = array();
+  // Counter Checkbox.
+  $element['enable_counter'] = array(
+    '#type'           => 'checkbox',
+    '#title'          => t('Enable Counter'),
+    '#description'    => t('Enable the visual time counter'),
+    '#default_value'  => $settings['enable_counter'],
+  );
+  // Progress Checkbox.
+  $element['enable_progressbar'] = array(
+    '#type'           => 'checkbox',
+    '#title'          => t('Enable Progress Bar'),
+    '#description'    => t('Enable the visual progress bar'),
+    '#default_value'  => $settings['enable_progressbar'],
+  );
+  // Download Checkbox.
+  $element['enable_download'] = array(
+    '#type'           => 'checkbox',
+    '#title'          => t('Enable Download'),
+    '#description'    => t('Enable the download button'),
+    '#default_value'  => $settings['enable_download'],
+  );
+  // Back 30 Checkbox.
+  $element['enable_back30'] = array(
+    '#type'           => 'checkbox',
+    '#title'          => t('Enable Back 30'),
+    '#description'    => t('Enable the go back 30 seconds button'),
+    '#default_value'  => $settings['enable_back30'],
+  );
+  // Combo Speed Checkbox.
+  $element['enable_combospeed'] = array(
+    '#type'           => 'checkbox',
+    '#title'          => t('Enable Combo Speed'),
+    '#description'    => t('Enable the combo speed button'),
+    '#default_value'  => $settings['enable_combospeed'],
+  );
+  return $element;
+}
+
+/**
+ * Implements hook_field_formatter_settings_summary().
+ */
+function simpleplayer_field_formatter_settings_summary($field, $instance, $view_mode) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+  // We use t() for translation and placeholders to guard against attacks.
+  $summary = t(
+    'Options for HTML5 SimplePlayer', array(
+      '@enable_counter'      => $settings['enable_counter'],
+      '@enable_progressbar'  => $settings['enable_progressbar'],
+      '@enable_download'     => $settings['enable_download'],
+      '@enable_back30'       => $settings['enable_back30'],
+      '@enable_combospeed'   => $settings['enable_combospeed'],
+    )
+  );
+  return $summary;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function simpleplayer_theme() {
+  $module_path = drupal_get_path('module', 'simpleplayer');
+  return array(
+    'simpleplayer_text_button' => array(
+      'variables' => array(
+        'buttonname' => NULL,
+        'textname' => NULL,
+        'titletext' => NULL,
+      ),
+      'template' => 'simpleplayer-text-button',
+      'path' => $module_path . '/templates',
+    ),
+    'simpleplayer_symbol_button' => array(
+      'variables' => array(
+        'buttonname' => NULL,
+        'iconname' => NULL,
+        'titletext' => NULL,
+      ),
+      'template' => 'simpleplayer-symbol-button',
+      'path' => $module_path . '/templates',
+    ),
+    'simpleplayer_media_tag' => array(
+      'variables' => array(
+        'simpleplayer_mediapath' => NULL,
+        'simpleplayer_mediatype' => NULL,
+      ),
+      'template' => 'simpleplayer-media-tag',
+      'path' => $module_path . '/templates',
+    ),
+    'simpleplayer' => array(
+      'variables' => array(
+        'simpleplayer_id' => NULL,
+        'simpleplayer_counter' => NULL,
+        'simpleplayer_progressbar' => NULL,
+        'simpleplayer_media_tag' => NULL,
+        'simpleplayer_download_button' => NULL,
+        'simpleplayer_back30_button' => NULL,
+        'simpleplayer_play_button' => NULL,
+        'simpleplayer_combospeed_button' => NULL,
+      ),
+      'template' => 'simpleplayer',
+      'path' => $module_path . '/templates',
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function simpleplayer_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+  // Get the settings.
+  $settings = $display['settings'];
+  $enable_counter = $settings['enable_counter'];
+  $enable_progressbar = $settings['enable_progressbar'];
+  $enable_download = $settings['enable_download'];
+  $enable_back30 = $settings['enable_back30'];
+  $enable_combospeed = $settings['enable_combospeed'];
+  $counter = NULL;
+  $progressbar = NULL;
+  $downloadbutton = NULL;
+  $back30button = NULL;
+  $combospeedbutton = NULL;
+  // Add requested CSS style file to Drupal.
+  $style = variable_get('simpleplayer_style');
+  if ((isset($style)) && ($style != 'none')) {
+    drupal_add_css(drupal_get_path('module', 'simpleplayer') . '/css/simpleplayer-' . $style . '.css', array('group' => CSS_DEFAULT, 'every_page' => TRUE));
+  }
+
+  // Add js needed for player.
+  drupal_add_js(drupal_get_path('module', 'simpleplayer') . '/js/simpleplayer.js');
+
+  foreach ($items as $delta => $item) {
+    if (isset($item['uri'])) {
+      $mediapath = file_create_url($item['uri']);
+    }
+    elseif (isset($item['url'])) {
+      $mediapath = file_create_url($item['url']);
+    }
+    $mediatype = simpleplayer_type($mediapath);
+
+    // check for Font Awesome
+    $fontawesome = FALSE;
+    if (function_exists('libraries_detect')) {
+      if (($library = libraries_detect('fontawesome')) && !empty($library['installed'])) {
+        $fontawesome = TRUE;
+      }
+    }
+
+    // Get a unique ID for this media player.
+    $id = 'player-' . drupal_clean_css_identifier($field['field_name']);
+    if ($enable_counter) {
+      $counter = '<div class="simpleplayer-timer">00:00:00:00</div>';
+    }
+    if ($enable_progressbar) {
+      $progressbar = '<div class="simpleplayer-progressbar"><span></span></div>';
+    }
+    if ($enable_download) {
+      if ($fontawesome) {
+        $downloadbutton = theme('simpleplayer_symbol_button', array(
+          'buttonname' => 'download',
+          'iconname' => 'fa-arrow-circle-o-down',
+          'title' => 'download mp3',
+          )
+        );
+      } else {
+        $downloadbutton = theme('simpleplayer_text_button', array(
+          'buttonname' => 'download',
+          'textname' => 'V',
+          'title' => 'download mp3',
+          )
+        );
+      }
+    }
+    if ($enable_back30) {
+      if ($fontawesome) {
+        $back30button = theme('simpleplayer_symbol_button', array(
+          'buttonname' => 'back30',
+          'iconname' => 'fa-arrow-circle-o-left',
+          'title' => 'rewind track by 30 seconds',
+          )
+        );
+      } else {
+        $back30button = theme('simpleplayer_text_button', array(
+          'buttonname' => 'back30',
+          'textname' => '&#171;',
+          'title' => 'rewind track by 30 seconds',
+          )
+        );
+      }
+    }
+    if ($fontawesome) {
+      $playbutton = theme('simpleplayer_symbol_button', array(
+        'buttonname' => 'play',
+        'iconname' => 'fa-play',
+        'title' => 'play/pause track',
+        )
+      );
+    } else {
+      $playbutton = theme('simpleplayer_text_button', array(
+        'buttonname' => 'play',
+        'textname' => '&#062; &#124;&#124;',
+        'title' => 'play/pause track',
+        )
+      );
+    }
+    if ($enable_combospeed) {
+      $combospeedbutton = theme('simpleplayer_text_button', array(
+        'buttonname' => 'combospeed',
+        'textname' => '1x',
+        'title' => 'track speed control',
+        )
+      );
+    }
+    $mediatag = theme('simpleplayer_media_tag', array(
+      'simpleplayer_mediapath'    => $mediapath,
+      'simpleplayer_mediatype'    => $mediatype,
+      )
+    );
+    $playerhtml = theme('simpleplayer', array(
+      'simpleplayer_id' => $id,
+      'simpleplayer_counter' => $counter,
+      'simpleplayer_progressbar' => $progressbar,
+      'simpleplayer_media_tag' => $mediatag,
+      'simpleplayer_download_button' => $downloadbutton,
+      'simpleplayer_back30_button' => $back30button,
+      'simpleplayer_play_button' => $playbutton,
+      'simpleplayer_combospeed_button' => $combospeedbutton,
+      )
+    );
+    $element[$delta] = array(
+      '#markup' => $playerhtml,
+    );
+  }
+  return $element;
+}
